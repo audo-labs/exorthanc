@@ -53,8 +53,7 @@ defmodule Exorthanc.Retrieve do
       {:ok, study}
   """
   def study(url, uuid, hackney_opts \\ []) do
-    HTTPoison.get("#{url}/studies/#{uuid}", @dcm_hdr, build_hackney_opts(hackney_opts))
-    |> decode_response
+    HTTPoison.get!("#{url}/studies/#{uuid}", @dcm_hdr, build_hackney_opts(hackney_opts))
   end
 
   @doc """

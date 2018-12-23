@@ -17,7 +17,7 @@ defmodule Exorthanc.Store do
     |> decode_response
   end
 
-  def send_to(url, modality, study_instance_uid) do
+  def send_dicom_to_modality(url, modality, study_instance_uid) do
     case Retrieve.tools_lookup(url, study_instance_uid) do
       {:ok, [%{"ID" => uuid}]} ->
         case modality(url, modality, uuid) do

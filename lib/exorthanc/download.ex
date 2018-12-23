@@ -1,4 +1,5 @@
 defmodule Exorthanc.Download do
+
   alias GDCM
   alias Exorthanc.Retrieve
 
@@ -9,11 +10,23 @@ defmodule Exorthanc.Download do
 
   @gdcmconv "gdcmconv"
 
-  def study(base_url, studyInstanceUid, hackney_opts \\ %{}, compression \\ nil) do
+  @doc """
+  Download a study.
+  Jpeg2000 compression can be used (needs GDCM).
+
+  ## Examples
+      iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
+      ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
+       '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
+
+       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", "j2k")
+       ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
+        '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
+  """
+  def study(base_url, studyInstanceUid, compression \\ nil, hackney_opts \\ []) do
     tmp_dir = "#{System.tmp_dir()}/#{studyInstanceUid}"
     File.mkdir_p!(tmp_dir)
-    uuid = get_uuid(base_url, studyInstanceUid)
-    resp = Retrieve.study(base_url, uuid, hackney_opts)
+    resp = Retrieve.study(base_url, studyInstanceUid, hackney_opts)
     case resp.headers |> extract_boundary do
       nil -> []
       boundary ->
@@ -22,7 +35,7 @@ defmodule Exorthanc.Download do
     end
   end
 
-  def extract_boundary(headers) do
+  defp extract_boundary(headers) do
     case headers |> List.keyfind("Content-Type", 0) do
       nil -> nil
       {_, type} ->
@@ -40,12 +53,12 @@ defmodule Exorthanc.Download do
     end)
   end
 
-  def write_file(dir, index, data, nil) do
+  defp write_file(dir, index, data, nil) do
     filename = "#{dir}/#{index}.dcm"
     File.write!(filename, data)
     filename |> to_charlist
   end
-  def write_file(dir, index, data, "j2k") do
+  defp write_file(dir, index, data, "j2k") do
     tmp_fn = "#{dir}/tmp#{index}.dcm"
     jpeg2k_fn = "#{dir}/#{index}.dcm"
     with :ok <- File.write(tmp_fn, data),
@@ -53,13 +66,6 @@ defmodule Exorthanc.Download do
          :ok <- File.rm(tmp_fn)
     do
       jpeg2k_fn |> to_charlist
-    end
-  end
-
-  def get_uuid(url, studyInstanceUid) do
-    case Retrieve.tools_lookup(url, studyInstanceUid) do
-      {:ok, %{"ID" => uuid}} -> uuid
-      [] -> {:error, "not found"}
     end
   end
 
