@@ -6,8 +6,8 @@ defmodule Exorthanc.Retrieve do
   """
 
   # Default headers and options
-  @json_hdr ["Accept": "Application/json; Charset=utf-8"]
-  @dcm_hdr [{"accept", "multipart/related;type=application/dicom"}]
+  @json_hdr [{"accept", "Application/json; Charset=utf-8"}]
+  @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
 
   @doc """
   Returns Orthanc changelog given a sequence number.
@@ -46,14 +46,24 @@ defmodule Exorthanc.Retrieve do
   end
 
   @doc """
-  Given an Orthanc study uid, returns the study as a map.
+  Given an Orthanc Study Id, returns the entire response from orthanc with the study as a json.
+  Given an Study Instance UID, returns a multipart response with a binary body for each instance.
+  The second option uses Dicomweb, the url must be accordingly.
 
   ## Examples
       iex> Exorthanc.Retrieve.study("localhost:8042", "1837905f-1709cde6-e1921871-5c322305-e1bc605d")
-      {:ok, study}
+      %HTTPoison.Response{
+        body: study_as_json,
+        ...
+      }
+      iex> Exorthanc.Retrieve.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
+      %HTTPoison.Response{
+        body: study_multipart_binary,
+        ...
+      }
   """
-  def study(url, uuid, hackney_opts \\ []) do
-    HTTPoison.get!("#{url}/studies/#{uuid}", @dcm_hdr, build_hackney_opts(hackney_opts))
+  def study(url, id, hackney_opts \\ []) do
+    HTTPoison.get!("#{url}/studies/#{id}", @dcm_hdr, build_hackney_opts(hackney_opts))
   end
 
   @doc """
@@ -85,6 +95,59 @@ defmodule Exorthanc.Retrieve do
   def tools_lookup(url, data) do
     HTTPoison.post("#{url}/tools/lookup", data)
     |> decode_response
+  end
+
+  def search_for_studies(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/studies", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :studies_01))
+  end
+
+  def search_for_series(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/series", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :series_01))
+  end
+  def search_for_series_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/studies/#{study_instance_uid}/series", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :series_02))
+  end
+
+  def search_for_instances(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/instances", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :instances_01))
+  end
+  def search_for_instances_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/studies/#{study_instance_uid}/instances", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :instances_02))
+  end
+  def search_for_instances_by_series(base_url, study_instance_uid, series_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
+    url = build_query_url(base_url, "/studies/#{study_instance_uid}/series/#{series_instance_uid}/instances", query, response_params)
+    request(url, true, Keyword.put(hackney_opts, :pool, :instances_03))
+  end
+
+  defp build_query_url(base_url, path, query, response_params) do
+    query = prepare_query(query, response_params)
+    build_url(base_url, path, query)
+  end
+  defp prepare_query(query, response_params) do
+    fields = response_params[:include_fields]
+    include_fields =
+      cond do
+        fields == :all ->
+          "all"
+        is_list(fields) && length(fields) > 0 ->
+          Enum.join(fields, ",")
+        true ->
+          nil
+      end
+    base = %{
+      "includefield" => include_fields,
+      "limit" => response_params[:limit],
+      "offset" => response_params[:limit]
+    }
+    base
+    |> Map.merge(query)
+    |> Enum.reject(fn {_, v} -> is_nil(v) end)
+    |> Map.new
   end
 
 end

@@ -11,7 +11,7 @@ defmodule Exorthanc.Download do
   @gdcmconv "gdcmconv"
 
   @doc """
-  Download a study.
+  Download a study using Dicom-web.
   Jpeg2000 compression can be used (needs GDCM).
 
   ## Examples
