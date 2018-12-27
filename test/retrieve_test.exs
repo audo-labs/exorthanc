@@ -1,34 +1,7 @@
-defmodule RetrieveTest do
-  use ExUnit.Case
+defmodule Exorthanc.RetrieveTest do
+  use Exorthanc.TestCase
 
   alias Exorthanc.Retrieve
-
-  @changes_json "{\n   \"Changes\" : [\n      {\n         \"ChangeType\" : \"StableStudy\",\n         \"Date\" : \"20181226T184150\",\n         \"ID\" : \"44b14312-ccba5e18-d0df33ab-e4572c82-ed317d69\",\n         \"Path\" : \"/studies/44b14312-ccba5e18-d0df33ab-e4572c82-ed317d69\",\n         \"ResourceType\" : \"Study\",\n         \"Seq\" : 1\n      },\n      {\n         \"ChangeType\" : \"StablePatient\",\n         \"Date\" : \"20181226T184150\",\n         \"ID\" : \"873412a4-7ce25628-18238e63-d632958b-8eb2b50b\",\n         \"Path\" : \"/patients/873412a4-7ce25628-18238e63-d632958b-8eb2b50b\",\n         \"ResourceType\" : \"Patient\",\n         \"Seq\" : 2\n      }\n   ],\n   \"Done\" : true,\n   \"Last\" : 2\n}\n"
-
-  @changes_map {:ok,
-             %{
-               "Changes" => [
-                 %{
-                   "ChangeType" => "StableStudy",
-                   "Date" => "20181226T184150",
-                   "ID" => "44b14312-ccba5e18-d0df33ab-e4572c82-ed317d69",
-                   "Path" => "/studies/44b14312-ccba5e18-d0df33ab-e4572c82-ed317d69",
-                   "ResourceType" => "Study",
-                   "Seq" => 1
-                  },
-                  %{
-                    "ChangeType" => "StablePatient",
-                    "Date" => "20181226T184150",
-                    "ID" => "873412a4-7ce25628-18238e63-d632958b-8eb2b50b",
-                    "Path" => "/patients/873412a4-7ce25628-18238e63-d632958b-8eb2b50b",
-                    "ResourceType" => "Patient",
-                    "Seq" => 2
-                  }
-                ],
-                "Done" => true,
-                "Last" => 2
-              }
-            }
 
   setup do
     bypass = Bypass.open()
@@ -37,10 +10,54 @@ defmodule RetrieveTest do
 
   test "get orthanc changelog", %{bypass: bypass} do
     Bypass.expect(bypass, fn conn ->
+      assert "/changes" == conn.request_path
+      assert "GET" == conn.method
       Plug.Conn.resp(conn, 200, @changes_json)
     end)
     response = Retrieve.changes("http://localhost:#{bypass.port}")
-    assert @changes_map = response
+    assert @changes = response
+  end
+
+  test "get orthanc instances", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      assert "/instances" == conn.request_path
+      assert "GET" == conn.method
+      Plug.Conn.resp(conn, 200, @instances_json)
+    end)
+    response = Retrieve.get("http://localhost:#{bypass.port}", "instances")
+    assert @instances = response
+  end
+
+  test "get orthanc modalities", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      assert "/modalities" == conn.request_path
+      assert "GET" == conn.method
+      Plug.Conn.resp(conn, 200, @modalities_json)
+    end)
+    response = Retrieve.modalities("http://localhost:#{bypass.port}")
+    assert @modalities = response
+  end
+
+  test "post orthanc tools_lookup", %{bypass: bypass} do
+    #TODO: check if post data is right
+    Bypass.expect(bypass, fn conn ->
+      assert "/tools/lookup" == conn.request_path
+      assert "POST" == conn.method
+      Plug.Conn.resp(conn, 200, @tools_lookup_json)
+    end)
+    response = Retrieve.tools_lookup("http://localhost:#{bypass.port}", "1.2.3.4.5")
+    assert @tools_lookup = response
+  end
+
+  test "credentials header and invalid credentials", %{bypass: bypass} do
+    Bypass.expect(bypass, fn conn ->
+      assert "/instances" == conn.request_path
+      assert "GET" == conn.method
+      refute is_nil(Enum.find(conn.req_headers, fn({k, _}) -> k == "authorization" end))
+      Plug.Conn.resp(conn, 401, "")
+    end)
+    response = Retrieve.get("http://wrong:credentials@localhost:#{bypass.port}", "instances")
+    assert {:error, {_, 401}} = response
   end
 
 end

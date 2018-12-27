@@ -70,15 +70,15 @@ defmodule Exorthanc.Retrieve do
 
   ## Examples
       iex> Exorthanc.Retrieve.study("localhost:8042", "1837905f-1709cde6-e1921871-5c322305-e1bc605d")
-      %HTTPoison.Response{
+      {:ok, %HTTPoison.Response{
         body: study_as_json,
         ...
-      }
+      }}
       iex> Exorthanc.Retrieve.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
-      %HTTPoison.Response{
+      {:ok, %HTTPoison.Response{
         body: study_multipart_binary,
         ...
-      }
+      }}
   """
   def study(url, id, hackney_opts \\ []) do
     build_url(url, "studies" |> Path.join(id))

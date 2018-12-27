@@ -2,6 +2,7 @@ defmodule Exorthanc.Helpers do
   alias Exorthanc.Retrieve
 
   @default_header [{"accept", "Application/json; Charset=utf-8"}]
+  @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
 
   @moduledoc """
   Provides helper functions to facilitate access to Orthanc API.
@@ -25,16 +26,20 @@ defmodule Exorthanc.Helpers do
     end |> to_string
   end
 
-  def request(url, method, body \\ "", hackney_opts \\ [], header \\ @default_header) do
+  def request(url, method, body \\ "", hackney_opts \\ [], header \\ @default_header)
+  def request(url, method, body, hackney_opts, @dcm_hdr) do
+      HTTPoison.request(method, url, body, hackney_opts, @dcm_hdr)
+  end
+  def request(url, method, body, hackney_opts, header) do
     case HTTPoison.request(method, url, body, header, build_hackney_opts(hackney_opts)) do
       {:ok, %{status_code: status_code, body: body}} ->
-        case Poison.decode(body) do
-          {:ok, response} when div(status_code, 100) == 2 ->
-            {:ok, response}
-          {:ok, _} ->
-            {:error, "Invalid request"}
-          {:error, _} ->
-            {:error, "Could not parse response"}
+        with 2 <- div(status_code, 100),
+            {:ok, response} <- Poison.decode(body)
+        do
+          {:ok, response}
+        else
+          {:error, error} -> {:error, error}
+          _ -> {:error, {url, status_code}}
         end
       {:error, error} ->
         {:error, "Could not fetch data (#{error.reason})"}
