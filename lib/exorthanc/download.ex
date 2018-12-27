@@ -25,13 +25,15 @@ defmodule Exorthanc.Download do
   """
   def study(base_url, studyInstanceUid, compression \\ nil, hackney_opts \\ []) do
     tmp_dir = "#{System.tmp_dir()}/#{studyInstanceUid}"
-    File.mkdir_p!(tmp_dir)
-    resp = Retrieve.study(base_url, studyInstanceUid, hackney_opts)
-    case resp.headers |> extract_boundary do
-      nil -> []
-      boundary ->
-        {:ok, parts} = :hackney_multipart.decode_form(boundary, resp.body)
-        dicom_stream(parts, tmp_dir, compression)
+    with :ok <- File.mkdir_p!(tmp_dir),
+         {:ok, resp} <- Retrieve.study(base_url, studyInstanceUid, hackney_opts),
+         boundary when not is_nil(boundary) <- resp.headers |> extract_boundary,
+         {:ok, parts} = :hackney_multipart.decode_form(boundary, resp.body)
+    do
+      dicom_stream(parts, tmp_dir, compression)
+    else
+      nil -> {:error, "Study #{studyInstanceUid} not found"}
+      error -> error
     end
   end
 

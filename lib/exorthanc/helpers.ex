@@ -15,16 +15,8 @@ defmodule Exorthanc.Helpers do
     opts() |> Keyword.merge([hackney: user_opts])
   end
 
-  def decode_response(response) do
-    case response do
-      {:ok, %{body: body}} ->
-        Poison.decode(body)
-      {:error, %{reason: err}} -> {:error, err}
-    end
-  end
-
   def build_url(base_path, path, query \\ %{}) do
-    base_url = base_path <> path
+    base_url = Path.join(base_path, path)
     query_str = URI.encode_query(query)
     if String.length(query_str) > 0 do
       base_url |> URI.merge("?" <> query_str)
@@ -33,22 +25,12 @@ defmodule Exorthanc.Helpers do
     end |> to_string
   end
 
-  def request(url, tagify_response \\ false, hackney_opts \\ %{}) do
-    case HTTPoison.get(url, @default_header, build_hackney_opts(hackney_opts)) do
+  def request(url, method, body \\ "", hackney_opts \\ [], header \\ @default_header) do
+    case HTTPoison.request(method, url, body, header, build_hackney_opts(hackney_opts)) do
       {:ok, %{status_code: status_code, body: body}} ->
         case Poison.decode(body) do
           {:ok, response} when div(status_code, 100) == 2 ->
-            if tagify_response do
-              try do
-                tagified_response = tagify_response!(response)
-                {:ok, tagified_response}
-              rescue
-                _ ->
-                {:error, "Could not tagify response"}
-              end
-            else
-              {:ok, response}
-            end
+            {:ok, response}
           {:ok, _} ->
             {:error, "Invalid request"}
           {:error, _} ->
@@ -58,16 +40,23 @@ defmodule Exorthanc.Helpers do
         {:error, "Could not fetch data (#{error.reason})"}
     end
   end
-  def request!(url, tagify_response \\ false) do
-    case request(url, tagify_response) do
+  def request!(url, method, header \\ @default_header, tagify? \\ false) do
+    case request(url, method, header, tagify?) do
       {:ok, response} -> response
       {:error, error} -> throw(error)
     end
   end
 
-  defp tagify_response!(response) do
-    response
-    |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
+  def tagify_response(response) do
+    try do
+      tagified_response =
+        response
+        |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
+      {:ok, tagified_response}
+    rescue
+      _ ->
+      {:error, "Could not tagify response"}
+    end
   end
   defp get_tag_value(%{"Value" => [value]}), do: value
   defp get_tag_value(%{"Value" => []}), do: ""
@@ -76,6 +65,14 @@ defmodule Exorthanc.Helpers do
     case Retrieve.tools_lookup(url, studyInstanceUid) do
       {:ok, [%{"ID" => uuid}]} -> {:ok, uuid}
       [] -> {:error, "not found"}
+    end
+  end
+
+  def decode_response(response) do
+    case response do
+      {:ok, %{body: body}} ->
+        Poison.decode(body)
+      {:error, %{reason: err}} -> {:error, err}
     end
   end
 

@@ -9,12 +9,14 @@ defmodule Exorthanc.Store do
   # THIS USES DICOM_WEB
   def studies(url, resp, hackney_opts) do
     ct = List.keyfind(resp.headers, "Content-Type", 0)
-    HTTPoison.post!("#{url}/studies", resp.body, [ct], build_hackney_opts(hackney_opts))
+    build_url(url, "studies")
+    |> request(:post, resp.body, build_hackney_opts(hackney_opts), [ct])
   end
 
   def modality(url, modality, uuid) do
-    HTTPoison.post("#{url}/modalities/#{modality}/store", uuid, [], [recv_timeout: :infinity])
-    |> decode_response
+    path = "modalities" |> Path.join(modality) |> Path.join("store")
+    build_url(url, path)
+    |> request(:post, uuid, [recv_timeout: :infinity])
   end
 
   def send_dicom_to_modality(url, modality, study_instance_uid) do
