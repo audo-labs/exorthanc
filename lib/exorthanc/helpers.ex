@@ -26,20 +26,16 @@ defmodule Exorthanc.Helpers do
     end |> to_string
   end
 
-  def request(url, method, body \\ "", hackney_opts \\ [], header \\ @default_header)
-  def request(url, method, body, hackney_opts, @dcm_hdr) do
-      HTTPoison.request(method, url, body, hackney_opts, @dcm_hdr)
-  end
-  def request(url, method, body, hackney_opts, header) do
+  def request(url, method, body \\ "", hackney_opts \\ [], header \\ @default_header) do
     case HTTPoison.request(method, url, body, header, build_hackney_opts(hackney_opts)) do
-      {:ok, %{status_code: status_code, body: body}} ->
-        with 2 <- div(status_code, 100),
-            {:ok, response} <- Poison.decode(body)
+      {:ok, response} ->
+        with 2 <- div(response.status_code, 100),
+            {:ok, response} <- decode_json(response, header)
         do
           {:ok, response}
         else
           {:error, error} -> {:error, error}
-          _ -> {:error, {url, status_code}}
+          _ -> {:error, {url, response.status_code}}
         end
       {:error, error} ->
         {:error, "Could not fetch data (#{error.reason})"}
@@ -51,6 +47,9 @@ defmodule Exorthanc.Helpers do
       {:error, error} -> throw(error)
     end
   end
+
+  def decode_json(response, @default_header), do: Poison.decode(response.body)
+  def decode_json(response, @dcm_hdr), do: {:ok, response}
 
   def tagify_response(response) do
     try do
