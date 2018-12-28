@@ -1,4 +1,4 @@
-defmodule ExOrthanc.AlternatePool do
+defmodule Exorthanc.AlternatePool do
   @moduledoc """
   Agent to alternate hackney pools when making HTTPoison requests
   """
