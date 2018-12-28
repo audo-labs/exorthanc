@@ -13,6 +13,9 @@ defmodule Exorthanc do
       :world
 
   """
+  def hello do
+    :world
+  end
 
   def start(_type, _args) do
     import Supervisor.Spec
