@@ -1,4 +1,5 @@
 defmodule Exorthanc do
+  use Application
   @moduledoc """
   Documentation for Exorthanc.
   """
@@ -12,7 +13,13 @@ defmodule Exorthanc do
       :world
 
   """
-  def hello do
-    :world
+
+  def start(_type, _args) do
+    children = [
+      worker(ExOrthanc.AlternatePool, [])
+    ]
+
+    opts = [strategy: :one_for_one, name: GenstageExample.Supervisor]
+    Supervisor.start_link(children, opts)
   end
 end

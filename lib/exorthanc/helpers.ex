@@ -1,5 +1,5 @@
 defmodule Exorthanc.Helpers do
-  alias Exorthanc.Retrieve
+  alias Exorthanc.{Retrieve, AlternatePool}
 
   @default_header [{"accept", "Application/json; Charset=utf-8"}]
   @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
@@ -9,7 +9,7 @@ defmodule Exorthanc.Helpers do
   """
 
   def opts do
-    [timeout: 10000, recv_timeout: 30000]
+    [timeout: 10000, recv_timeout: 30000, hackney: [pool: AlternatePool.next()]]
   end
 
   def build_hackney_opts(user_opts \\ []) do
