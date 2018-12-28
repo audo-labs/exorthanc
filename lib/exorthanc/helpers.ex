@@ -9,11 +9,11 @@ defmodule Exorthanc.Helpers do
   """
 
   def opts do
-    [timeout: 10000, recv_timeout: 30000, hackney: [pool: AlternatePool.next()]]
+    [timeout: 10000, recv_timeout: 30000]
   end
 
   def build_hackney_opts(user_opts \\ []) do
-    opts() |> Keyword.merge([hackney: user_opts])
+    opts() |> Keyword.merge([hackney: user_opts ++ [pool: AlternatePool.next()]])
   end
 
   def build_url(base_path, path, query \\ %{}) do
