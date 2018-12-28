@@ -121,7 +121,6 @@ defmodule Exorthanc.Retrieve do
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :studies_01))
     |> tagify_response
   end
-
   def search_for_series(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/series", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :series_01))

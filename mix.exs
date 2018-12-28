@@ -24,7 +24,7 @@ defmodule Exorthanc.MixProject do
   defp deps do
     [
       {:poison, "~> 3.1"},
-      {:httpoison, "~> 1.4"},
+      {:httpoison, "~> 0.13"},
       {:bypass, "~> 1.0", only: :test}
     ]
   end
