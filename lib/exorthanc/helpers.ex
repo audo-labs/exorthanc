@@ -1,5 +1,5 @@
 defmodule Exorthanc.Helpers do
-  alias Exorthanc.Retrieve
+  alias Exorthanc.{Retrieve, AlternatePool}
 
   @default_header [{"accept", "Application/json; Charset=utf-8"}]
   @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
@@ -13,7 +13,7 @@ defmodule Exorthanc.Helpers do
   end
 
   def build_hackney_opts(user_opts \\ []) do
-    opts() |> Keyword.merge([hackney: user_opts])
+    opts() |> Keyword.merge([hackney: user_opts ++ [pool: AlternatePool.next()]])
   end
 
   def build_url(base_path, path, query \\ %{}) do
