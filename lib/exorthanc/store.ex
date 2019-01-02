@@ -5,6 +5,11 @@ defmodule Exorthanc.Store do
   @moduledoc """
   Provides a set of functions to store data on Orthanc.
   """
+  # STORE STUDY ON ORTHANC USING DICOMWEB
+  def study(url, filepath, hackney_opts) do
+    build_url(url, "instances")
+    |> request(:post, {:file, filepath}, [], hackney_opts)
+  end
 
   # THIS USES DICOM_WEB
   def studies(url, resp, hackney_opts) do
