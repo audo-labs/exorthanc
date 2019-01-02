@@ -82,7 +82,7 @@ defmodule Exorthanc.Retrieve do
   """
   def study(url, id, hackney_opts \\ []) do
     build_url(url, "studies" |> Path.join(id))
-    |> request(:get, "", build_hackney_opts(hackney_opts), @dcm_hdr)
+    |> request(:get, "", hackney_opts, @dcm_hdr)
   end
 
   @doc """
