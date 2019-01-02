@@ -23,7 +23,7 @@ defmodule Exorthanc.Download do
        ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
         '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
   """
-  def study(base_url, studyInstanceUid, compression \\ nil, hackney_opts \\ []) do
+  def study(base_url, studyInstanceUid, compression \\ false, hackney_opts \\ []) do
     tmp_dir = "#{System.tmp_dir()}/#{studyInstanceUid}"
     with :ok <- File.mkdir_p!(tmp_dir),
          {:ok, resp} <- Retrieve.study(base_url, studyInstanceUid, hackney_opts),
@@ -55,7 +55,7 @@ defmodule Exorthanc.Download do
     end)
   end
 
-  defp write_file(dir, index, data, nil) do
+  defp write_file(dir, index, data, false) do
     filename = "#{dir}/#{index}.dcm"
     File.write!(filename, data)
     filename |> to_charlist
