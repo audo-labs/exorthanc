@@ -49,7 +49,7 @@ defmodule Exorthanc.Helpers do
   end
 
   def decode_json(response, @default_header), do: Poison.decode(response.body)
-  def decode_json(response, @dcm_hdr), do: {:ok, response}
+  def decode_json(response, _), do: {:ok, response}
 
   def tagify_response({:ok, response}), do: tagify_response(response)
   def tagify_response(response) do

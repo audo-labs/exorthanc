@@ -5,7 +5,7 @@ defmodule Exorthanc.Retrieve do
   Provides a set of functions to retrieve data using Orthanc API.
   """
 
-  # Multipart Header
+  @default_header [{"accept", "Application/json; Charset=utf-8"}]
   @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
 
   @doc """
@@ -46,9 +46,9 @@ defmodule Exorthanc.Retrieve do
         }
       }
   """
-  def get(url, path) do
+  def get(url, path, hackney_opts \\ [], header \\ @default_header) do
     build_url(url, path)
-    |> request(:get)
+    |> request(:get, "", hackney_opts, header)
   end
 
   @doc """
