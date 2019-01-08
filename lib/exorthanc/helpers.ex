@@ -2,7 +2,6 @@ defmodule Exorthanc.Helpers do
   alias Exorthanc.{Retrieve, AlternatePool}
 
   @default_header [{"accept", "Application/json; Charset=utf-8"}]
-  @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
 
   @moduledoc """
   Provides helper functions to facilitate access to Orthanc API.

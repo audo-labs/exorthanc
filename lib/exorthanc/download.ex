@@ -22,15 +22,20 @@ defmodule Exorthanc.Download do
        iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", "j2k")
        ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
         '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
+
+       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [directory: "/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137"])
+       ['/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
+        '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
   """
   def study(base_url, studyInstanceUid, options \\ []) do
-    tmp_dir = "#{System.tmp_dir()}/#{studyInstanceUid}"
-    with :ok <- File.mkdir_p!(tmp_dir),
+    opts_dir = Keyword.get(options, :directory)
+    dest_dir = if opts_dir, do: opts_dir, else: "#{System.tmp_dir()}/#{studyInstanceUid}"
+    with :ok <- File.mkdir_p!(dest_dir),
          {:ok, resp} <- Retrieve.study(base_url, studyInstanceUid, options),
          boundary when not is_nil(boundary) <- resp.headers |> extract_boundary,
          {:ok, parts} = :hackney_multipart.decode_form(boundary, resp.body)
     do
-      dicom_stream(parts, tmp_dir, options)
+      dicom_stream(parts, dest_dir, options)
     else
       nil -> {:error, "Study #{studyInstanceUid} not found"}
       error -> error

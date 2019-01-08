@@ -7,6 +7,7 @@ defmodule Exorthanc.Retrieve do
 
   @default_header [{"accept", "Application/json; Charset=utf-8"}]
   @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
+  @bin_hdr [{"accept", "image/jpeg; type=application/dicom"}]
 
   @doc """
   Returns Orthanc changelog given a sequence number.
@@ -83,6 +84,11 @@ defmodule Exorthanc.Retrieve do
   def study(url, id, hackney_opts \\ []) do
     build_url(url, "studies" |> Path.join(id))
     |> request(:get, "", hackney_opts, @dcm_hdr)
+  end
+
+  def instance(url, id, hackney_opts \\ []) do
+    build_url(url, "instances" |> Path.join(id))
+    |> request(:get, "", hackney_opts, @bin_hdr)
   end
 
   @doc """
