@@ -11,6 +11,56 @@ defmodule Exorthanc.Download do
   @gdcmconv "gdcmconv"
 
   @doc """
+  Download a study instance by instance.
+  Jpeg2000 compression can be used (needs GDCM).
+
+  ## Examples
+      iex> Exorthanc.Download.study_by_instances("localhost:8042", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
+      ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
+       '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
+
+       iex> Exorthanc.Download.study("localhost:8042", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [compression: "j2k"])
+       ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
+        '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
+
+       iex> Exorthanc.Download.study("localhost:8042", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [directory: "/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137"])
+       ['/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
+        '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
+  """
+  def study_by_instances(base_url, studyInstanceUid, options \\ []) do
+    opts_dir = Keyword.get(options, :directory)
+    dest_dir = if opts_dir, do: opts_dir, else: "#{System.tmp_dir()}/#{studyInstanceUid}"
+    compression = Keyword.get(options, :compression)
+    compression = if compression, do: compression, else: nil
+    with :ok <- File.mkdir_p!(dest_dir),
+         dicom_web_url <- Path.join(base_url, "dicom-web"),
+         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid),
+         sop_list <- Enum.reduce(result, [], fn(x, acc) -> [x.sop_instance_uid] ++ acc end),
+         file_list <- write_instances(base_url, sop_list, %{directory: dest_dir, compression: compression})
+    do
+      file_list
+    end
+  end
+
+  def write_instances(url, sop_list, opts) do
+    do_write_instances(url, sop_list, opts, [])
+  end
+  def do_write_instances(url, [instance_sop | instances], opts, file_list) do
+    filename = instance_sop <> ".dcm"
+    with {:ok, [%{"ID" => instance_uuid}]} <- Retrieve.tools_lookup(url, instance_sop),
+         {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid),
+         filepath when is_binary(filepath) <- write_file(opts.directory, filename, body, opts.compression)
+    do
+      file_list = file_list ++ [filepath]
+      do_write_instances(url, instances, opts, file_list)
+    end
+  end
+  def do_write_instances(_, [], _, file_list) do
+    file_list
+  end
+
+
+  @doc """
   Download a study using Dicom-web.
   Jpeg2000 compression can be used (needs GDCM).
 
@@ -19,7 +69,7 @@ defmodule Exorthanc.Download do
       ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
        '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
 
-       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", "j2k")
+       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [compression: "j2k"])
        ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
         '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
 
@@ -57,24 +107,26 @@ defmodule Exorthanc.Download do
     |> Enum.map(fn({part, index}) ->
       {_, data} = part
       compression = Keyword.get(options, :compression)
-      write_file(dir, index, data, compression)
+      write_file(dir, index <> ".dcm", data, compression)
     end)
   end
 
-  defp write_file(dir, index, data, "j2k") do
-    tmp_fn = "#{dir}/tmp#{index}.dcm"
-    jpeg2k_fn = "#{dir}/#{index}.dcm"
-    with :ok <- File.write(tmp_fn, data),
-    {:ok, _} <- GDCM.exec(@gdcmconv, ["-U", "--j2k", tmp_fn, jpeg2k_fn]),
-    :ok <- File.rm(tmp_fn)
+  defp write_file(dir, filename, data, compression) do
+    Path.join(dir, filename)
+    |> write_file(data, compression)
+  end
+  defp write_file(filepath, data, "j2k") do
+    tmp_fp = Path.join(System.tmp_dir, "tmp.dcm")
+    with :ok <- File.write(tmp_fp, data),
+    {:ok, _} <- GDCM.exec(@gdcmconv, ["-U", "--j2k", tmp_fp, filepath]),
+    :ok <- File.rm(tmp_fp)
     do
-      jpeg2k_fn |> to_charlist
+      filepath
     end
   end
-  defp write_file(dir, index, data, nil) do
-    filename = "#{dir}/#{index}.dcm"
-    File.write!(filename, data)
-    filename |> to_charlist
+  defp write_file(filepath, data, nil) do
+    File.write!(filepath, data)
+    filepath
   end
 
 end

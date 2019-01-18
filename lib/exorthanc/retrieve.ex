@@ -86,8 +86,8 @@ defmodule Exorthanc.Retrieve do
     |> request(:get, "", hackney_opts, @dcm_hdr)
   end
 
-  def instance(url, id, hackney_opts \\ []) do
-    build_url(url, "instances" |> Path.join(id))
+  def instance_dicom(url, id, hackney_opts \\ []) do
+    build_url(url, ["instances", id, "file"])
     |> request(:get, "", hackney_opts, @bin_hdr)
   end
 
