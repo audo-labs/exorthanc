@@ -52,6 +52,13 @@ defmodule Exorthanc.Retrieve do
     |> request(:get, "", hackney_opts, header)
   end
 
+  def get!(url, path, hackney_opts \\ [], header \\ @default_header) do
+    case get(url, path, hackney_opts, header) do
+      {:ok, response} -> response
+      {:error, error} -> raise(error)
+    end
+  end
+
   @doc """
   Returns Orthanc uuid for all studies.
 
