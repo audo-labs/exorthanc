@@ -58,6 +58,7 @@ defmodule Exorthanc.Helpers do
   def decode_json(response, @default_header), do: Poison.decode(response.body)
   def decode_json(response, _), do: {:ok, response}
 
+  def tagify_response({:error, response}), do: {:error, response}
   def tagify_response({:ok, response}), do: tagify_response(response)
   def tagify_response(response) do
     try do
@@ -66,8 +67,7 @@ defmodule Exorthanc.Helpers do
         |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
       {:ok, tagified_response}
     rescue
-      _ ->
-      {:error, "Could not tagify response"}
+      _ -> {:error, response}
     end
   end
   defp get_tag_value(%{"Value" => [value]}), do: value
