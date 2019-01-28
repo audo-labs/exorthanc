@@ -34,7 +34,7 @@ defmodule Exorthanc.Download do
     compression = if compression, do: compression, else: nil
     with :ok <- File.mkdir_p!(dest_dir),
          dicom_web_url <- Path.join(base_url, "dicom-web"),
-         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid),
+         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid, options),
          sop_list <- Enum.reduce(result, [], fn(x, acc) -> [x.sop_instance_uid] ++ acc end),
          file_list <- write_instances(base_url, sop_list, %{directory: dest_dir, compression: compression})
     do
