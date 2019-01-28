@@ -15,7 +15,7 @@ defmodule Exorthanc.Download do
   Jpeg2000 compression can be used (needs GDCM).
 
   ## Examples
-      iex> Exorthanc.Download.study_by_instances("localhost:8042", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
+      iex> Exorthanc.Download.study_by_instances("localhost:8042", "1.2.840.113619.2.22.288.1.14234.20161124.245137". [basic_auth: {user, pass}])
       ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
        '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
 
@@ -28,15 +28,15 @@ defmodule Exorthanc.Download do
         '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
   """
   def study_by_instances(base_url, studyInstanceUid, options \\ []) do
-    opts_dir = Keyword.get(options, :directory)
-    dest_dir = if opts_dir, do: opts_dir, else: "#{System.tmp_dir()}/#{studyInstanceUid}"
-    compression = Keyword.get(options, :compression)
-    compression = if compression, do: compression, else: nil
-    with :ok <- File.mkdir_p!(dest_dir),
+    options =
+      options
+      |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), studyInstanceUid))
+      |> Keyword.put_new(:compression, nil)
+    with :ok <- File.mkdir_p!(options[:dest_dir]),
          dicom_web_url <- Path.join(base_url, "dicom-web"),
-         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid),
+         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid, %{}, options),
          sop_list <- Enum.reduce(result, [], fn(x, acc) -> [x.sop_instance_uid] ++ acc end),
-         file_list <- write_instances(base_url, sop_list, %{directory: dest_dir, compression: compression})
+         file_list <- write_instances(base_url, sop_list, options)
     do
       file_list
     end
@@ -48,8 +48,8 @@ defmodule Exorthanc.Download do
   def do_write_instances(url, [instance_sop | instances], opts, file_list) do
     filename = instance_sop <> ".dcm"
     with {:ok, [%{"ID" => instance_uuid}]} <- Retrieve.tools_lookup(url, instance_sop),
-         {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid),
-         filepath when is_binary(filepath) <- write_file(opts.directory, filename, body, opts.compression)
+         {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
+         filepath when is_binary(filepath) <- write_file(opts[:directory], filename, body, opts[:compression])
     do
       file_list = file_list ++ [filepath]
       do_write_instances(url, instances, opts, file_list)
