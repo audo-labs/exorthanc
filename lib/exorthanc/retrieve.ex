@@ -16,9 +16,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.changes("localhost:8042", 100)
       {:ok, %{"Changes" => [changes], "Done" => true, "Last" => 100}}
   """
-  def changes(url, sequence \\ 0) do
+  def changes(url, sequence \\ 0, hackney_opts \\ []) do
     build_url(url, "changes?since=#{sequence}")
-    |> request(:get)
+    |> request(:get, "", hackney_opts)
   end
 
   @doc """
@@ -66,9 +66,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.studies("localhost:8042")
       {:ok, ["695bbc6e-a0110056-49769ee5-e1c2ab2a-785c1b97", "9107ff1b-1897a1a8-abf7b189-e2809db5-4ae4515c"]}
   """
-  def studies(url) do
+  def studies(url, hackney_opts \\ []) do
     build_url(url, "studies")
-    |> request(:get)
+    |> request(:get,  "", hackney_opts)
   end
 
   @doc """
@@ -105,9 +105,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.modalities("localhost:8042")
       {:ok, ["sample", "test"]}
   """
-  def modalities(url) do
+  def modalities(url, hackney_opts \\ []) do
     build_url(url, "modalities")
-    |> request(:get)
+    |> request(:get, "", hackney_opts)
   end
 
   @doc """
@@ -124,9 +124,9 @@ defmodule Exorthanc.Retrieve do
             ]
       }
   """
-  def tools_lookup(url, data) do
+  def tools_lookup(url, data, hackney_opts \\ []) do
     build_url(url, Path.join("tools", "lookup"))
-    |> request(:post, data)
+    |> request(:post, data, hackney_opts)
   end
 
   def search_for_studies(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do

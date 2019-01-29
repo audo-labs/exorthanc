@@ -18,16 +18,16 @@ defmodule Exorthanc.Store do
     |> request(:post, resp.body, build_hackney_opts(hackney_opts), [ct])
   end
 
-  def modality(url, modality, uuid) do
+  def modality(url, modality, uuid, hackney_opts) do
     path = "modalities" |> Path.join(modality) |> Path.join("store")
     build_url(url, path)
-    |> request(:post, uuid, [recv_timeout: :infinity])
+    |> request(:post, uuid, Keyword.put(hackney_opts, :recv_timeout, :infinity))
   end
 
-  def send_dicom_to_modality(url, modality, study_instance_uid) do
-    case Retrieve.tools_lookup(url, study_instance_uid) do
+  def send_dicom_to_modality(url, modality, study_instance_uid, hackney_opts \\ []) do
+    case Retrieve.tools_lookup(url, study_instance_uid, hackney_opts) do
       {:ok, [%{"ID" => uuid}]} ->
-        case modality(url, modality, uuid) do
+        case modality(url, modality, uuid, hackney_opts) do
           {:ok, _} -> {:ok, true}
           err -> err
         end

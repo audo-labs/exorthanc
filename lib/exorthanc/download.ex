@@ -32,9 +32,9 @@ defmodule Exorthanc.Download do
       options
       |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), studyInstanceUid))
       |> Keyword.put_new(:compression, nil)
-    with :ok <- File.mkdir_p!(options[:dest_dir]),
+    with :ok <- File.mkdir_p!(options[:directory]),
          dicom_web_url <- Path.join(base_url, "dicom-web"),
-         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid, %{}, options),
+         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid, %{}, %{}, options),
          sop_list <- Enum.reduce(result, [], fn(x, acc) -> [x.sop_instance_uid] ++ acc end),
          file_list <- write_instances(base_url, sop_list, options)
     do
@@ -47,7 +47,7 @@ defmodule Exorthanc.Download do
   end
   def do_write_instances(url, [instance_sop | instances], opts, file_list) do
     filename = instance_sop <> ".dcm"
-    with {:ok, [%{"ID" => instance_uuid}]} <- Retrieve.tools_lookup(url, instance_sop),
+    with {:ok, [%{"ID" => instance_uuid}]} <- Retrieve.tools_lookup(url, instance_sop, opts),
          {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
          filepath when is_binary(filepath) <- write_file(opts[:directory], filename, body, opts[:compression])
     do
