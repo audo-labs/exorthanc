@@ -132,33 +132,33 @@ defmodule Exorthanc.Retrieve do
   def search_for_studies(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :studies_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_series(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/series", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :series_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_series_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/series", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :series_02))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
 
   def search_for_instances(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_instances_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_02))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_instances_by_series(base_url, study_instance_uid, series_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/series/#{series_instance_uid}/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_03))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
 
   defp build_query_url(base_url, path, query, response_params) do

@@ -58,8 +58,11 @@ defmodule Exorthanc.Helpers do
   def decode_json(response, @default_header), do: Poison.decode(response.body)
   def decode_json(response, _), do: {:ok, response}
 
-  def tagify_response({:error, response}), do: {:error, response}
-  def tagify_response({:ok, response}), do: tagify_response(response)
+  def tagify_response({:error, response}, _), do: {:error, response}
+  def tagify_response({:ok, response}, url) do
+    if String.contains?(url, "dicom-web") do tagify_response(response)
+    else {:ok, response} end
+  end
   def tagify_response(response) do
     try do
       tagified_response =
