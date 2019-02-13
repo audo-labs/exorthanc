@@ -1,6 +1,5 @@
 defmodule Exorthanc.Store do
   import Exorthanc.Helpers
-  alias Exorthanc.Retrieve
 
   @moduledoc """
   Provides a set of functions to store data on Orthanc.
@@ -24,13 +23,9 @@ defmodule Exorthanc.Store do
     |> request(:post, uuid, Keyword.put(hackney_opts, :recv_timeout, :infinity))
   end
 
-  def send_dicom_to_modality(url, modality, study_instance_uid, hackney_opts \\ []) do
-    case Retrieve.tools_lookup(url, study_instance_uid, hackney_opts) do
-      {:ok, [%{"ID" => uuid}]} ->
-        case modality(url, modality, uuid, hackney_opts) do
-          {:ok, _} -> {:ok, true}
-          err -> err
-        end
+  def send_dicom_to_modality(url, modality, orthanc_uuid) do
+    case modality(url, modality, orthanc_uuid) do
+      {:ok, _} -> {:ok, true}
       err -> err
     end
   end
