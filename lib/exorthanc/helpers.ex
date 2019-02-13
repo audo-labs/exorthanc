@@ -15,8 +15,16 @@ defmodule Exorthanc.Helpers do
     opts() |> Keyword.merge([hackney: user_opts ++ [pool: AlternatePool.next()]])
   end
 
-  def build_url(base_path, path, query \\ %{}) do
-    base_url = Path.join(base_path, path)
+  def build_url(base_path, paths, query \\ %{})
+  def build_url(base_path, pathlist, query) when is_list(pathlist) do
+    Path.join([base_path] ++ pathlist)
+    |> do_build_url(query)
+  end
+  def build_url(base_path, path, query) do
+    Path.join(base_path, path)
+    |> do_build_url(query)
+  end
+  def do_build_url(base_url, query) do
     query_str = URI.encode_query(query)
     if String.length(query_str) > 0 do
       base_url |> URI.merge("?" <> query_str)
@@ -50,7 +58,11 @@ defmodule Exorthanc.Helpers do
   def decode_json(response, @default_header), do: Poison.decode(response.body)
   def decode_json(response, _), do: {:ok, response}
 
-  def tagify_response({:ok, response}), do: tagify_response(response)
+  def tagify_response({:error, response}, _), do: {:error, response}
+  def tagify_response({:ok, response}, url) do
+    if String.contains?(url, "dicom-web") do tagify_response(response)
+    else {:ok, response} end
+  end
   def tagify_response(response) do
     try do
       tagified_response =
@@ -58,8 +70,7 @@ defmodule Exorthanc.Helpers do
         |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
       {:ok, tagified_response}
     rescue
-      _ ->
-      {:error, "Could not tagify response"}
+      _ -> {:error, response}
     end
   end
   defp get_tag_value(%{"Value" => [value]}), do: value

@@ -16,9 +16,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.changes("localhost:8042", 100)
       {:ok, %{"Changes" => [changes], "Done" => true, "Last" => 100}}
   """
-  def changes(url, sequence \\ 0) do
+  def changes(url, sequence \\ 0, hackney_opts \\ []) do
     build_url(url, "changes?since=#{sequence}")
-    |> request(:get)
+    |> request(:get, "", hackney_opts)
   end
 
   @doc """
@@ -52,6 +52,13 @@ defmodule Exorthanc.Retrieve do
     |> request(:get, "", hackney_opts, header)
   end
 
+  def get!(url, path, hackney_opts \\ [], header \\ @default_header) do
+    case get(url, path, hackney_opts, header) do
+      {:ok, response} -> response
+      {:error, error} -> raise(error)
+    end
+  end
+
   @doc """
   Returns Orthanc uuid for all studies.
 
@@ -59,9 +66,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.studies("localhost:8042")
       {:ok, ["695bbc6e-a0110056-49769ee5-e1c2ab2a-785c1b97", "9107ff1b-1897a1a8-abf7b189-e2809db5-4ae4515c"]}
   """
-  def studies(url) do
+  def studies(url, hackney_opts \\ []) do
     build_url(url, "studies")
-    |> request(:get)
+    |> request(:get,  "", hackney_opts)
   end
 
   @doc """
@@ -86,8 +93,8 @@ defmodule Exorthanc.Retrieve do
     |> request(:get, "", hackney_opts, @dcm_hdr)
   end
 
-  def instance(url, id, hackney_opts \\ []) do
-    build_url(url, "instances" |> Path.join(id))
+  def instance_dicom(url, id, hackney_opts \\ []) do
+    build_url(url, ["instances", id, "file"])
     |> request(:get, "", hackney_opts, @bin_hdr)
   end
 
@@ -98,9 +105,9 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.modalities("localhost:8042")
       {:ok, ["sample", "test"]}
   """
-  def modalities(url) do
+  def modalities(url, hackney_opts \\ []) do
     build_url(url, "modalities")
-    |> request(:get)
+    |> request(:get, "", hackney_opts)
   end
 
   @doc """
@@ -117,41 +124,41 @@ defmodule Exorthanc.Retrieve do
             ]
       }
   """
-  def tools_lookup(url, data) do
+  def tools_lookup(url, data, hackney_opts \\ []) do
     build_url(url, Path.join("tools", "lookup"))
-    |> request(:post, data)
+    |> request(:post, data, hackney_opts)
   end
 
   def search_for_studies(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :studies_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_series(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/series", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :series_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_series_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/series", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :series_02))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
 
   def search_for_instances(base_url, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_01))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_instances_by_study(base_url, study_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_02))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
   def search_for_instances_by_series(base_url, study_instance_uid, series_instance_uid, query \\ %{}, response_params \\ %{}, hackney_opts \\ []) do
     build_query_url(base_url, "/studies/#{study_instance_uid}/series/#{series_instance_uid}/instances", query, response_params)
     |> request(:get, "", Keyword.put(hackney_opts, :pool, :instances_03))
-    |> tagify_response
+    |> tagify_response(base_url)
   end
 
   defp build_query_url(base_url, path, query, response_params) do

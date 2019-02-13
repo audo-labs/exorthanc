@@ -17,10 +17,10 @@ defmodule Exorthanc.Store do
     |> request(:post, resp.body, build_hackney_opts(hackney_opts), [ct])
   end
 
-  def modality(url, modality, uuid) do
+  def modality(url, modality, uuid, hackney_opts) do
     path = "modalities" |> Path.join(modality) |> Path.join("store")
     build_url(url, path)
-    |> request(:post, uuid, [recv_timeout: :infinity])
+    |> request(:post, uuid, Keyword.put(hackney_opts, :recv_timeout, :infinity))
   end
 
   def send_dicom_to_modality(url, modality, orthanc_uuid) do
