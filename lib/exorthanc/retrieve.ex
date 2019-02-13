@@ -55,7 +55,7 @@ defmodule Exorthanc.Retrieve do
   def get!(url, path, hackney_opts \\ [], header \\ @default_header) do
     case get(url, path, hackney_opts, header) do
       {:ok, response} -> response
-      {:error, error} -> raise(error)
+      {:error, error} -> raise("#{inspect error})
     end
   end
 
