@@ -1,7 +1,7 @@
 defmodule Exorthanc.Helpers do
   alias Exorthanc.{Retrieve, AlternatePool}
 
-  @default_header [{"accept", "Application/json; Charset=utf-8"}]
+  @default_header [{"accept", "application/json"}]
 
   @moduledoc """
   Provides helper functions to facilitate access to Orthanc API.

@@ -5,7 +5,7 @@ defmodule Exorthanc.Retrieve do
   Provides a set of functions to retrieve data using Orthanc API.
   """
 
-  @default_header [{"accept", "Application/json; Charset=utf-8"}]
+  @default_header [{"accept", "application/json"}]
   @dcm_hdr [{"accept", "multipart/related; type=application/dicom"}]
   @bin_hdr [{"accept", "image/jpeg; type=application/dicom"}]
 
@@ -55,7 +55,7 @@ defmodule Exorthanc.Retrieve do
   def get!(url, path, hackney_opts \\ [], header \\ @default_header) do
     case get(url, path, hackney_opts, header) do
       {:ok, response} -> response
-      {:error, error} -> raise("#{inspect error})
+      {:error, error} -> raise("#{inspect error}")
     end
   end
 

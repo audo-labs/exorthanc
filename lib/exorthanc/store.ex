@@ -23,8 +23,8 @@ defmodule Exorthanc.Store do
     |> request(:post, uuid, Keyword.put(hackney_opts, :recv_timeout, :infinity))
   end
 
-  def send_dicom_to_modality(url, modality, orthanc_uuid) do
-    case modality(url, modality, orthanc_uuid) do
+  def send_dicom_to_modality(url, modality, orthanc_uuid, hackney_opts) do
+    case modality(url, modality, orthanc_uuid, hackney_opts) do
       {:ok, _} -> {:ok, true}
       err -> err
     end
