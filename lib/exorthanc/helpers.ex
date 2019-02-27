@@ -8,7 +8,7 @@ defmodule Exorthanc.Helpers do
   """
 
   def opts do
-    [timeout: 10000, recv_timeout: 30000]
+    [timeout: 20000, recv_timeout: 60000]
   end
 
   def build_hackney_opts(user_opts \\ []) do
