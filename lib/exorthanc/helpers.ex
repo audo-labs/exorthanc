@@ -83,6 +83,26 @@ defmodule Exorthanc.Helpers do
     end
   end
 
+  def generate_study_uuid(patient_id, study_instance_uid) do
+    string = "#{patient_id}|#{study_instance_uid}"
+    do_generate_uuid(string)
+  end
+
+  def generate_serie_uuid(patient_id, study_instance_uid, serie_instance_uid) do
+    string = "#{patient_id}|#{study_instance_uid}|#{serie_instance_uid}"
+    do_generate_uuid(string)
+  end
+
+  def generate_instance_uuid(patient_id, study_instance_uid, serie_instance_uid, instance_uid) do
+    string = "#{patient_id}|#{study_instance_uid}|#{serie_instance_uid}|#{instance_uid}"
+    do_generate_uuid(string)
+  end
+
+  defp do_generate_uuid(string) do
+    hash = :crypto.hash(:sha, string) |> Base.encode16 |> String.downcase
+    "#{String.slice(hash, 00, 8)}-#{String.slice(hash, 08, 8)}-#{String.slice(hash, 16, 8)}-#{String.slice(hash, 24, 8)}-#{String.slice(hash, 32, 8)}"
+  end
+
   def decode_response(response) do
     case response do
       {:ok, %{body: body}} ->

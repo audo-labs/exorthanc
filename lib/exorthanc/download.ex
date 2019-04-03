@@ -1,7 +1,7 @@
 defmodule Exorthanc.Download do
 
   alias GDCM
-  alias Exorthanc.Retrieve
+  alias Exorthanc.{Retrieve, Helpers}
 
   @moduledoc """
   Uses Orthanc API to retrieve and save data to local files.
@@ -27,35 +27,36 @@ defmodule Exorthanc.Download do
        ['/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
         '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
   """
-  def study_by_instances(base_url, studyInstanceUid, options \\ []) do
+  def study_by_instances(base_url, study_instance_uid, options \\ []) do
     options =
       options
-      |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), studyInstanceUid))
+      |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), study_instance_uid))
       |> Keyword.put_new(:compression, nil)
     with :ok <- File.mkdir_p!(options[:directory]),
          dicom_web_url <- Path.join(base_url, "dicom-web"),
-         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, studyInstanceUid, %{}, %{}, options),
-         sop_list <- Enum.reduce(result, [], fn(x, acc) -> [x.sop_instance_uid] ++ acc end),
-         file_list <- write_instances(base_url, sop_list, options)
+         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, study_instance_uid, %{includefield: "00100020"}, %{}, options),
+         patient_id <- (if length(result) > 0, do: hd(result).patient_id, else: "00000"),
+         sop_list <- Enum.reduce(result, [], fn(x, acc) -> [{x.series_instance_uid, x.sop_instance_uid}] ++ acc end),
+         file_list <- write_instances(base_url, patient_id, study_instance_uid, sop_list, options)
     do
       file_list
     end
   end
 
-  def write_instances(url, sop_list, opts) do
-    do_write_instances(url, sop_list, opts, [])
+  def write_instances(url, patient_id, study_instance_uid, sop_list, opts) do
+    do_write_instances(url, patient_id, study_instance_uid, sop_list, opts, [])
   end
-  def do_write_instances(url, [instance_sop | instances], opts, file_list) do
+  def do_write_instances(url, patient_id, study_instance_uid, [{serie_uuid, instance_sop} | instances], opts, file_list) do
     filename = instance_sop <> ".dcm"
-    with {:ok, [%{"ID" => instance_uuid}]} <- Retrieve.tools_lookup(url, instance_sop, opts),
+    with instance_uuid <- Helpers.generate_instance_uuid(patient_id, study_instance_uid, serie_uuid, instance_sop),
          {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
          filepath when is_binary(filepath) <- write_file(opts[:directory], filename, body, opts[:compression])
     do
       file_list = file_list ++ [filepath]
-      do_write_instances(url, instances, opts, file_list)
+      do_write_instances(url, patient_id, study_instance_uid, instances, opts, file_list)
     end
   end
-  def do_write_instances(_, [], _, file_list) do
+  def do_write_instances(_, _, _, [], _, file_list) do
     file_list
   end
 
