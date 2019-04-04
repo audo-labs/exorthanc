@@ -27,36 +27,46 @@ defmodule Exorthanc.Download do
        ['/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-1>.dcm',
         '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/<SOPInstanceUID-2>.dcm']
   """
-  def study_by_instances(base_url, study_instance_uid, options \\ []) do
+  def study_by_instances(base_url, study_uuid, options \\ []) do
     options =
       options
-      |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), study_instance_uid))
+      |> Keyword.put_new(:directory, System.tmp_dir())
       |> Keyword.put_new(:compression, nil)
     with :ok <- File.mkdir_p!(options[:directory]),
-         dicom_web_url <- Path.join(base_url, "dicom-web"),
-         {:ok, result} <- Retrieve.search_for_instances_by_study(dicom_web_url, study_instance_uid, %{includefield: "00100020"}, %{}, options),
-         patient_id <- (if length(result) > 0, do: hd(result).patient_id, else: "00000"),
-         sop_list <- Enum.reduce(result, [], fn(x, acc) -> [{x.series_instance_uid, x.sop_instance_uid}] ++ acc end),
-         file_list <- write_instances(base_url, patient_id, study_instance_uid, sop_list, options)
+         {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", options),
+         {patient_id, study_instance_uid} <- {main_tags["PatientMainDicomTags"]["PatientID"], main_tags["MainDicomTags"]["StudyInstanceUID"]},
+         series_map <- build_series_map(base_url, study_uuid, options),
+         file_list <- write_instances(base_url, patient_id, study_instance_uid, series_map, options)
     do
       file_list
     end
   end
 
-  def write_instances(url, patient_id, study_instance_uid, sop_list, opts) do
-    do_write_instances(url, patient_id, study_instance_uid, sop_list, opts, [])
+  def build_series_map(url, study_uuid, options) do
+    {:ok, series} = Retrieve.get(url, "/studies/#{study_uuid}/series", options)
+    Enum.reduce(series, %{}, fn(serie, map) ->
+        {:ok, instances} = Retrieve.get(url, "series/#{serie["ID"]}/instances-tags\?simplify", options)
+        instances_list = Enum.reduce(instances, [], fn({_id, instance}, acc) -> acc ++ [instance["SOPInstanceUID"]] end)
+      Map.put(map, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
+    end)
   end
-  def do_write_instances(url, patient_id, study_instance_uid, [{serie_uuid, instance_sop} | instances], opts, file_list) do
-    filename = instance_sop <> ".dcm"
-    with instance_uuid <- Helpers.generate_instance_uuid(patient_id, study_instance_uid, serie_uuid, instance_sop),
+
+  def write_instances(url, patient_id, study_instance_uid, series_map, opts) do
+    Enum.map(series_map, fn({serie_id, instances}) ->
+      do_write_instances(url, patient_id, study_instance_uid, serie_id, instances, opts, [])
+    end)
+  end
+  def do_write_instances(url, patient_id, study_instance_uid, serie_id, [instance_sop | instances], opts, file_list) do
+    with filename <- Path.join(study_instance_uid, serie_id) |> Path.join("#{instance_sop}.dcm"),
+         instance_uuid <- Helpers.generate_instance_uuid(patient_id, study_instance_uid, serie_id, instance_sop),
          {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
          filepath when is_binary(filepath) <- write_file(opts[:directory], filename, body, opts[:compression])
     do
       file_list = file_list ++ [filepath]
-      do_write_instances(url, patient_id, study_instance_uid, instances, opts, file_list)
+      do_write_instances(url, patient_id, study_instance_uid, serie_id, instances, opts, file_list)
     end
   end
-  def do_write_instances(_, _, _, [], _, file_list) do
+  def do_write_instances(_, _, _, _, [], _, file_list) do
     file_list
   end
 
@@ -113,8 +123,10 @@ defmodule Exorthanc.Download do
   end
 
   defp write_file(dir, filename, data, compression) do
-    Path.join(dir, filename)
-    |> write_file(data, compression)
+    path = Path.join(dir, filename)
+    Path.dirname(path)
+    |> File.mkdir_p()
+    write_file(path, data, compression)
   end
   defp write_file(filepath, data, "j2k") do
     tmp_fp = Path.join(System.tmp_dir, "tmp.dcm")
