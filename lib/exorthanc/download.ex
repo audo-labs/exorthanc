@@ -35,7 +35,7 @@ defmodule Exorthanc.Download do
     with :ok <- File.mkdir_p!(options[:directory]),
          {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", options),
          {patient_id, study_instance_uid} <- {main_tags["PatientMainDicomTags"]["PatientID"], main_tags["MainDicomTags"]["StudyInstanceUID"]},
-         series_map <- build_series_map(base_url, study_uuid, options),
+         {:ok, series_map} <- build_series_map(base_url, study_uuid, options),
          file_list <- write_instances(base_url, patient_id, study_instance_uid, series_map, options)
     do
       file_list
@@ -43,11 +43,28 @@ defmodule Exorthanc.Download do
   end
 
   def build_series_map(url, study_uuid, options) do
-    {:ok, series} = Retrieve.get(url, "/studies/#{study_uuid}/series", options)
-    Enum.reduce(series, %{}, fn(serie, map) ->
-        {:ok, instances} = Retrieve.get(url, "series/#{serie["ID"]}/instances-tags\?simplify", options)
-        instances_list = Enum.reduce(instances, [], fn({_id, instance}, acc) -> acc ++ [instance["SOPInstanceUID"]] end)
-      Map.put(map, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
+    case Retrieve.get(url, "/studies/#{study_uuid}/series", options) do
+      {:ok, series} -> list_instances_by_series(url, series, options)
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp list_instances_by_series(url, series, options) do
+    Enum.reduce_while(series, %{}, fn(serie, acc) ->
+      case Retrieve.get(url, "/series/#{serie["ID"]}/instances", options) do
+        {:ok, instances} ->
+          if length(series) > length(Map.keys(acc)) + 1 do
+            instances_list = Enum.map(instances, &(&1["MainDicomTags"]["SOPInstanceUID"]))
+            acc = Map.put(acc, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
+            {:cont, acc}
+          else
+            instances_list = Enum.map(instances, &(&1["MainDicomTags"]["SOPInstanceUID"]))
+            acc = Map.put(acc, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
+            {:halt, {:ok, acc}}
+          end
+        {:error, error} ->
+          {:halt, {:error, error}}
+      end
     end)
   end
 
@@ -58,7 +75,7 @@ defmodule Exorthanc.Download do
     |> List.flatten
   end
   def do_write_instances(url, patient_id, study_instance_uid, serie_id, [instance_sop | instances], opts, file_list) do
-    with filename <- Path.join(study_instance_uid, serie_id) |> Path.join("#{instance_sop}.dcm"),
+    with filename <- Path.join([study_instance_uid, serie_id, "#{instance_sop}.dcm"]),
          instance_uuid <- Helpers.generate_instance_uuid(patient_id, study_instance_uid, serie_id, instance_sop),
          {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
          filepath when is_binary(filepath) <- write_file(opts[:directory], filename, body, opts[:compression])
