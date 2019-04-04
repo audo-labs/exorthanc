@@ -55,6 +55,7 @@ defmodule Exorthanc.Download do
     Enum.map(series_map, fn({serie_id, instances}) ->
       do_write_instances(url, patient_id, study_instance_uid, serie_id, instances, opts, [])
     end)
+    |> List.flatten
   end
   def do_write_instances(url, patient_id, study_instance_uid, serie_id, [instance_sop | instances], opts, file_list) do
     with filename <- Path.join(study_instance_uid, serie_id) |> Path.join("#{instance_sop}.dcm"),
