@@ -7,12 +7,19 @@ defmodule Exorthanc.Helpers do
   Provides helper functions to facilitate access to Orthanc API.
   """
 
-  def opts do
-    [timeout: 20000, recv_timeout: 60000]
-  end
+  @default_opts [timeout: 20000, recv_timeout: 60000]
 
   def build_hackney_opts(user_opts \\ []) do
-    opts() |> Keyword.merge([hackney: user_opts ++ [pool: AlternatePool.next()]])
+    hackney_opts =
+      Application.get_env(:exorthanc, :hackney_opts) || []
+      |> Keyword.merge(user_opts)
+    hackney_opts =
+      if Keyword.has_key?(hackney_opts, :pool) do
+        hackney_opts
+      else
+        hackney_opts |> Keyword.put(:pool, AlternatePool.next())
+      end
+    @default_opts |> Keyword.merge([hackney: hackney_opts])
   end
 
   def build_url(base_path, paths, query \\ %{})
