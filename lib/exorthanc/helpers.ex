@@ -118,4 +118,14 @@ defmodule Exorthanc.Helpers do
     end
   end
 
+  def to_ascii(str) do
+    String.normalize(str, :nfd)
+    |> String.to_charlist
+    |> Enum.reduce("", fn(c, acc) ->
+      if c <= 127, do: acc <> <<c>>, else: acc
+    end)
+  end
+
+  def clear_string(str), do: Regex.replace(~r/(\/|\+|\=|\-)/, str, "") |> String.trim
+
 end
