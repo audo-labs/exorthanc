@@ -21,8 +21,8 @@ defmodule Exorthanc.Download do
       |> Keyword.put_new(:compression, nil)
     with :ok <- File.mkdir_p!(opts[:directory]),
          {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", opts),
-         root_path <- build_study_path(main_tags),
-         {:ok, _} <- Path.join(opts[:directory], root_path) |> File.rm_rf,
+         root_path <- Path.join(opts[:directory], build_study_path(main_tags)),
+         {:ok, _} <- root_path |> File.rm_rf,
          path_map <- build_filepath_list(base_url, root_path, main_tags["Series"], opts),
          file_list <- write_instances(base_url, opts, path_map)
     do
@@ -31,13 +31,11 @@ defmodule Exorthanc.Download do
   end
 
   def build_study_path(main_tags) do
+    study_instance_uid = main_tags["MainDicomTags"]["StudyInstanceUID"]
     {patient, study} = {main_tags["PatientMainDicomTags"], main_tags["MainDicomTags"]}
-    study_path = "#{study["AccessionNumber"]} #{study["StudyDescription"]}"
-    |> Helpers.clear_string
-    study_path = "#{patient["PatientID"]} #{patient["PatientName"]}"
-    |> Helpers.clear_string
-    |> Path.join(study_path)
-    if study_path == "", do: "Unknown 2", else: study_path # 2 refers to a study resource type
+    patient_path = "#{patient["PatientID"]} #{patient["PatientName"]}" |> Helpers.sanitize_string
+    study_path = "#{study["AccessionNumber"]} #{study["StudyDescription"]}" |> Helpers.sanitize_string
+    Path.join([study_instance_uid, patient_path, study_path])
   end
 
   def build_filepath_list(url, root_path, series, opts) do
@@ -45,8 +43,8 @@ defmodule Exorthanc.Download do
       {:ok, serie} = Retrieve.get(url, "/series/#{serie_uuid}", opts)
       modality = serie["MainDicomTags"]["Modality"] |> String.upcase
       s_desc = "#{serie["MainDicomTags"]["SeriesDescription"]}"
-      serie_path = "#{modality} #{s_desc}" |> Helpers.clear_string
-      path = Path.join([opts[:directory], root_path, serie_path])
+      serie_path = "#{modality} #{s_desc}" |> Helpers.sanitize_string
+      path = Path.join(root_path, serie_path)
       path = create_directory(path)
       {instances, _num_of_instances} =
         Enum.reduce(serie["Instances"], {[], 0}, fn(i_uuid, {acc, num}) ->
