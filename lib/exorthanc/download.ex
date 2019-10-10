@@ -1,24 +1,18 @@
 defmodule Exorthanc.Download do
 
-  alias GDCM
   alias Exorthanc.{Retrieve, Helpers}
 
   @moduledoc """
   Uses Orthanc API to retrieve and save data to local files.
-  GDCM can be used to compress dicom files.
   """
-
-  @gdcmconv "gdcmconv"
 
   @doc """
     Download a study instance by instance.
-    Jpeg2000 compression can be used (needs GDCM).
   """
   def study_by_instances(base_url, study_uuid, options \\ []) do
     opts =
       options
       |> Keyword.put_new(:directory, Path.join(System.tmp_dir(), "studies"))
-      |> Keyword.put_new(:compression, nil)
     with :ok <- File.mkdir_p!(opts[:directory]),
          {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", opts),
          root_path <- Path.join(opts[:directory], build_study_path(main_tags)),
@@ -73,7 +67,7 @@ defmodule Exorthanc.Download do
 
   def do_write_instances(url, opts, path, [{filename, instance_uuid} | instances], file_list) do
     with {:ok, %HTTPoison.Response{body: body}} <- Retrieve.instance_dicom(url, instance_uuid, opts),
-         filepath when is_binary(filepath) <- write_file(path, filename, body, opts[:compression])
+         filepath when is_binary(filepath) <- write_file(path, filename, body)
     do
       file_list = file_list ++ [filepath]
       do_write_instances(url, opts, path, instances, file_list)
@@ -85,20 +79,6 @@ defmodule Exorthanc.Download do
 
   @doc """
   Download a study using Dicom-web.
-  Jpeg2000 compression can be used (needs GDCM).
-
-  ## Examples
-      iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137")
-      ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
-       '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
-
-       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [compression: "j2k"])
-       ['/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
-        '/tmp/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
-
-       iex> Exorthanc.Download.study("localhost:8042/dicom-web", "1.2.840.113619.2.22.288.1.14234.20161124.245137", [directory: "/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137"])
-       ['/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/0.dcm',
-        '/tmp/dicoms/1.2.840.113619.2.22.288.1.14234.20161124.245137/1.dcm']
   """
   def study(base_url, studyInstanceUid, options \\ []) do
     opts_dir = Keyword.get(options, :directory)
@@ -108,7 +88,7 @@ defmodule Exorthanc.Download do
          boundary when not is_nil(boundary) <- resp.headers |> extract_boundary,
          {:ok, parts} = :hackney_multipart.decode_form(boundary, resp.body)
     do
-      dicom_stream(parts, dest_dir, options)
+      dicom_stream(parts, dest_dir)
     else
       nil -> {:error, "Study #{studyInstanceUid} not found"}
       error -> error
@@ -124,34 +104,21 @@ defmodule Exorthanc.Download do
     end
   end
 
-  defp dicom_stream(parts, dir, options) do
+  defp dicom_stream(parts, dir) do
     parts
     |> Stream.with_index
     |> Enum.map(fn({part, index}) ->
       {_, data} = part
-      compression = Keyword.get(options, :compression)
-      write_file(dir, index <> ".dcm", data, compression)
+      write_file(dir, "#{index}" <> ".dcm", data)
     end)
   end
 
-  defp write_file(dir, filename, data, compression) do
+  defp write_file(dir, filename, data) do
     path = Path.join(dir, filename)
     Path.dirname(path)
     |> File.mkdir_p()
-    write_file(path, data, compression)
-  end
-  defp write_file(filepath, data, "j2k") do
-    tmp_fp = Path.join(System.tmp_dir, "tmp.dcm")
-    with :ok <- File.write(tmp_fp, data),
-    {:ok, _} <- GDCM.exec(@gdcmconv, ["-U", "--j2k", tmp_fp, filepath]),
-    :ok <- File.rm(tmp_fp)
-    do
-      filepath
-    end
-  end
-  defp write_file(filepath, data, nil) do
-    File.write!(filepath, data)
-    filepath
+    File.write!(path, data)
+    path
   end
 
 end
