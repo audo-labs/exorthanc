@@ -28,39 +28,41 @@ defmodule Exorthanc.Download do
       options
       |> Keyword.put_new(:directory, System.tmp_dir())
       |> Keyword.put_new(:compression, nil)
-    with :ok <- File.mkdir_p!(options[:directory]),
-         {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", options),
-         {patient_id, study_instance_uid} <- {main_tags["PatientMainDicomTags"]["PatientID"], main_tags["MainDicomTags"]["StudyInstanceUID"]},
-         {:ok, series_map} <- build_series_map(base_url, study_uuid, options),
-         file_list <- write_instances(base_url, patient_id, study_instance_uid, series_map, options)
+    with :ok <- File.mkdir_p!(opts[:directory]),
+         {:ok, main_tags} <- Retrieve.get(base_url, "/studies/#{study_uuid}/", opts),
+         root_path <- build_study_path(main_tags),
+         {:ok, _} <- Path.join(opts[:directory], root_path) |> File.rm_rf,
+         path_map <- build_filepath_list(base_url, root_path, main_tags["Series"], opts),
+         file_list <- write_instances(base_url, opts, path_map)
     do
       file_list
     end
   end
 
-  def build_series_map(url, study_uuid, options) do
-    case Retrieve.get(url, "/studies/#{study_uuid}/series", options) do
-      {:ok, series} -> list_instances_by_series(url, series, options)
-      {:error, error} -> {:error, error}
-    end
+  def build_study_path(main_tags) do
+    {patient, study} = {main_tags["PatientMainDicomTags"], main_tags["MainDicomTags"]}
+    study_path = "#{study["AccessionNumber"]} #{study["StudyDescription"]}"
+    |> Helpers.clear_string
+    study_path = "#{patient["PatientID"]} #{patient["PatientName"]}"
+    |> Helpers.clear_string
+    |> Path.join(study_path)
+    if study_path == "", do: "Unknown 2", else: study_path # 2 refers to a study resource type
   end
 
-  defp list_instances_by_series(url, series, options) do
-    Enum.reduce_while(series, %{}, fn(serie, acc) ->
-      case Retrieve.get(url, "/series/#{serie["ID"]}/instances", options) do
-        {:ok, instances} ->
-          if length(series) > length(Map.keys(acc)) + 1 do
-            instances_list = Enum.map(instances, &(&1["MainDicomTags"]["SOPInstanceUID"]))
-            acc = Map.put(acc, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
-            {:cont, acc}
-          else
-            instances_list = Enum.map(instances, &(&1["MainDicomTags"]["SOPInstanceUID"]))
-            acc = Map.put(acc, serie["MainDicomTags"]["SeriesInstanceUID"], instances_list)
-            {:halt, {:ok, acc}}
-          end
-        {:error, error} ->
-          {:halt, {:error, error}}
-      end
+  def build_filepath_list(url, root_path, series, opts) do
+    Enum.reduce(series, %{}, fn(serie_uuid, acc) ->
+      {:ok, serie} = Retrieve.get(url, "/series/#{serie_uuid}", opts)
+      modality = serie["MainDicomTags"]["Modality"] |> String.upcase
+      s_desc = "#{serie["MainDicomTags"]["SeriesDescription"]}"
+      serie_path = "#{modality} #{s_desc}" |> Helpers.clear_string
+      path = Path.join([opts[:directory], root_path, serie_path])
+      path = create_directory(path)
+      {instances, _num_of_instances} =
+        Enum.reduce(serie["Instances"], {[], 0}, fn(i_uuid, {acc, num}) ->
+          filename = "#{modality}#{String.pad_leading("#{num}", 6, "0")}.dcm"
+          {acc ++ [{filename, i_uuid}], num + 1}
+        end)
+      Map.put(acc, path, instances)
     end)
   end
 
