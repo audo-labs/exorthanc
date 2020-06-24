@@ -1,13 +1,12 @@
 defmodule Exorthanc.Helpers do
-  alias Exorthanc.{Retrieve, AlternatePool}
-
-  @default_header [{"accept", "application/json"}]
-
   @moduledoc """
   Provides helper functions to facilitate access to Orthanc API.
   """
+  alias Exorthanc.AlternatePool
 
+  @default_header [{"accept", "application/json"}]
   @default_opts [timeout: 20000, recv_timeout: 60000]
+
 
   def build_hackney_opts(user_opts \\ []) do
     hackney_opts =
@@ -61,34 +60,8 @@ defmodule Exorthanc.Helpers do
       {:error, error} -> throw(error)
     end
   end
-
-  def decode_json(response, @default_header), do: Poison.decode(response.body)
-  def decode_json(response, _), do: {:ok, response}
-
-  def tagify_response({:error, response}, _), do: {:error, response}
-  def tagify_response({:ok, response}, url) do
-    if String.contains?(url, "dicom-web") do tagify_response(response)
-    else {:ok, response} end
-  end
-  def tagify_response(response) do
-    try do
-      tagified_response =
-        response
-        |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
-      {:ok, tagified_response}
-    rescue
-      _ -> {:error, response}
-    end
-  end
-  defp get_tag_value(%{"Value" => [value]}), do: value
-  defp get_tag_value(%{"Value" => []}), do: ""
-
-  def get_uuid(url, studyInstanceUid) do
-    case Retrieve.tools_lookup(url, studyInstanceUid) do
-      {:ok, [%{"ID" => uuid}]} -> {:ok, uuid}
-      [] -> {:error, "not found"}
-    end
-  end
+  defp decode_json(response, @default_header), do: Poison.decode(response.body)
+  defp decode_json(response, _), do: {:ok, response}
 
   def generate_study_uuid(patient_id, study_instance_uid) do
     string = "#{patient_id}|#{study_instance_uid}"
@@ -110,22 +83,13 @@ defmodule Exorthanc.Helpers do
     "#{String.slice(hash, 00, 8)}-#{String.slice(hash, 08, 8)}-#{String.slice(hash, 16, 8)}-#{String.slice(hash, 24, 8)}-#{String.slice(hash, 32, 8)}"
   end
 
-  def decode_response(response) do
-    case response do
-      {:ok, %{body: body}} ->
-        Poison.decode(body)
-      {:error, %{reason: err}} -> {:error, err}
-    end
-  end
-
   def sanitize_string(str) do
     Regex.replace(~r/(\/|\+|\=|\-)/, str, "")
     |> to_ascii
     |> String.trim
   end
-
-  def to_ascii(str) do
-    String.normalize(str, :nfd)
+  defp to_ascii(str) do
+    :unicode.characters_to_nfd_binary(str)
     |> String.to_charlist
     |> Enum.reduce("", fn(c, acc) ->
       # removes control characters too (but not whitespace)
