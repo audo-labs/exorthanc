@@ -105,9 +105,54 @@ defmodule Exorthanc.Retrieve do
       iex> Exorthanc.Retrieve.modalities("localhost:8042")
       {:ok, ["sample", "test"]}
   """
-  def modalities(url, hackney_opts \\ []) do
-    build_url(url, "modalities")
+  def modalities(url, hackney_opts \\ [], expand \\ false) do
+    modalities_path =
+      case expand do
+        true ->
+          "modalities?expand"
+        false ->
+          "modalities"
+      end
+    build_url(url, modalities_path)
     |> request(:get, "", hackney_opts)
+  end
+
+  @doc """
+  Inserts or updates a dicom modality on Orthanc
+
+  ## Examples
+    iex> modality_json = %{"AET" => "ORTHANC2", "Host" => "192.167.12.11", "Port" => 4343}
+    %{"AET" => "ORTHANC2", "Host" => "192.167.12.11", "Port" => 4343}
+    iex> Exorthanc.Retrieve.upsert_modality("localhost:8042", "TEST", modality_json)
+    {:ok, _} || {:error, _}
+  """
+  def upsert_modality(url, modality_name, modality_json) do
+    build_url(url, Path.join(["modalities", "#{modality_name}"]))
+    |> request(:put, modality_json)
+  end
+
+  @doc """
+  Sends a C-Echo do a dicom modality configured in Orthanc
+
+  ## Examples
+    iex> Exorthanc.Retrieve.modality_c_echo("localhost:8042", "TEST")
+    {"localhost:8042", 200}
+  """
+  def modality_c_echo(url, modality_name) do
+    build_url(url, Path.join(["modalities", "#{modality_name}", "echo"]))
+    |> request(:post, "{}")
+  end
+
+  @doc """
+  Deletes a dicom modality from Orthanc
+
+  ## Examples
+    iex> Exorthanc.Retrieve.delete_modality("localhost:8042", "TEST")
+    {:ok, {"localhost:8042", 200}}
+  """
+  def delete_modality(url, modality_name) do
+    build_url(url, Path.join(["modalities", "#{modality_name}"]))
+    |> request(:delete)
   end
 
   @doc """
