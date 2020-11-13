@@ -65,24 +65,6 @@ defmodule Exorthanc.Helpers do
   def decode_json(response, @default_header), do: Poison.decode(response.body)
   def decode_json(response, _), do: {:ok, response}
 
-  def tagify_response({:error, response}, _), do: {:error, response}
-  def tagify_response({:ok, response}, url) do
-    if String.contains?(url, "dicom-web") do tagify_response(response)
-    else {:ok, response} end
-  end
-  def tagify_response(response) do
-    try do
-      tagified_response =
-        response
-        |> Enum.map(&(Map.new(&1, fn {k, v} -> {Exorthanc.Tag.name(k), get_tag_value(v)} end)))
-      {:ok, tagified_response}
-    rescue
-      _ -> {:error, response}
-    end
-  end
-  defp get_tag_value(%{"Value" => [value]}), do: value
-  defp get_tag_value(%{"Value" => []}), do: ""
-
   def get_uuid(url, studyInstanceUid) do
     case Retrieve.tools_lookup(url, studyInstanceUid) do
       {:ok, [%{"ID" => uuid}]} -> {:ok, uuid}

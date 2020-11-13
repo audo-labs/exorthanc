@@ -4,7 +4,7 @@ defmodule Exorthanc.AlternatePool do
   """
   use Agent
 
-  def start_link do
+  def start_link(_config) do
     pools =
       Enum.to_list(1..10)
       |> Enum.reduce([], fn x, acc ->
@@ -17,4 +17,5 @@ defmodule Exorthanc.AlternatePool do
   def next do
     Agent.get_and_update(__MODULE__, fn [a | tail] -> {a, tail ++ [a]} end)
   end
+
 end

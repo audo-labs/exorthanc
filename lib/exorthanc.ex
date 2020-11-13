@@ -18,12 +18,9 @@ defmodule Exorthanc do
   end
 
   def start(_type, _args) do
-    import Supervisor.Spec
-
     children = [
-      worker(Exorthanc.AlternatePool, [])
+      Exorthanc.AlternatePool
     ]
-
     opts = [strategy: :one_for_one, name: Exorthanc.Supervisor]
     Exorthanc.Supervisor.start_link(children, opts)
   end

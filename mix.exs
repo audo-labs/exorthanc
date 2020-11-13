@@ -24,9 +24,9 @@ defmodule Exorthanc.MixProject do
   # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
   defp deps do
     [
-      {:httpoison, "~> 1.6"},
-      {:poison, "~> 3.1"},
-      {:bypass, "~> 1.0", only: :test}
+      {:httpoison, "~> 1.7.0"},
+      {:poison, "~> 3.1.0"},
+      {:bypass, "~> 2.1.0-rc.0", only: :test}
     ]
   end
 end
