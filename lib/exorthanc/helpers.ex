@@ -118,4 +118,19 @@ defmodule Exorthanc.Helpers do
     end
   end
 
+  def sanitize_string(str) do
+    Regex.replace(~r/(\/|\+|\=|\-)/, str, "")
+    |> to_ascii
+    |> String.trim
+  end
+
+  def to_ascii(str) do
+    String.normalize(str, :nfd)
+    |> String.to_charlist
+    |> Enum.reduce("", fn(c, acc) ->
+      # removes control characters too (but not whitespace)
+      if (c >= 15 and c <= 127) or c == 10, do: acc <> <<c>>, else: acc
+    end)
+  end
+
 end
